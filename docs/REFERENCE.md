@@ -257,21 +257,26 @@ Windows is supported on a best-effort basis and exercised by the `Tests (Windows
 
 ## OpenCode
 
-The dependency-free `opencode.mjs` entrypoint implements the OpenCode V1 plugin config hook (verified with 1.18.34). Install the full package with `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global`, then restart OpenCode and run `/agy-ask reply with OK`. The companion requires Node.js and an authenticated `agy` on PATH. OpenCode V2 is not covered.
+The dependency-free `opencode.mjs` entrypoint is a combined V1/V2 plugin: its default export carries `server()` for OpenCode V1 (1.18.29 or newer; verified with 1.18.34) and `id` plus `setup()` for OpenCode V2 (verified with 2.0.23). Install the full package with `opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git'` on V2, or `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global` on V1 and restart. Then run `/agy-ask reply with OK`. The companion requires Node.js and an authenticated `agy` on PATH.
 
-The native installer adds a package entry to the `plugin` array in the OpenCode config. The equivalent configuration is:
+The native installer adds a package entry to the OpenCode config: the `plugins` array on V2, the `plugin` array on V1. The equivalent V2 configuration is:
 
 ```json
 {
-  "plugin": ["agy-staff@git+https://github.com/keli-wen/agy-staff.git"]
+  "plugins": ["agy-staff@git+https://github.com/keli-wen/agy-staff.git"]
 }
 ```
 
-The plugin appends its absolute bundled `opencode-skills/` directory to `skills.paths`, preserving existing paths and avoiding duplicate registrations. OpenCode discovers seven branded skills and exposes them as same-named slash commands: `/agy-ask`, `/agy-staffer`, `/agy-researcher`, `/agy-reviewer`, `/agy-implementer`, `/agy-jobs`, and `/agy-lead`. No command wrappers are installed. Existing OpenCode skill permissions still apply.
+Both hosts end up with seven branded skills and same-named slash commands: `/agy-ask`, `/agy-staffer`, `/agy-researcher`, `/agy-reviewer`, `/agy-implementer`, `/agy-jobs`, and `/agy-lead`. Existing OpenCode skill permissions still apply.
+
+- **V1** — the `config` hook appends the absolute bundled `opencode-skills/` directory to `skills.paths`, preserving existing paths and avoiding duplicate registrations. OpenCode discovers the skills and derives the commands itself; no command wrappers are installed.
+- **V2** — there is no config hook, and skills do not become commands. `setup()` registers each bundled skill through `ctx.skill.transform` with its absolute `SKILL.md` path, which OpenCode reports as the base directory for relative resources. It also registers a same-named command through `ctx.command.transform` that resubmits the user's prompt with that skill attached. Skill mentions such as `@agy-ask` work as well.
 
 `npm run generate:opencode` generates these entrypoints from canonical `skills/`, copying all assets, rewriting invocation syntax and sibling paths, and appending the same host compatibility context as Pi. The companion and prompt templates remain shared. Install the whole package; copying only the plugin file would lose its relative resources.
 
 For local development, run `opencode plugin /absolute/path/to/checkout --global`, generate skills with `npm run generate:skills`, and restart OpenCode. This reads the checkout directly. For Git installs, OpenCode 1.18.34 caches by the full package spec; restart or `--force` alone does not refresh an unchanged spec. Upgrade by choosing a newer tag or commit and running `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`, then restart. The selected ref must contain this adapter. `--force` replaces the configured plugin entry; changing the ref gives the new install a distinct cache key.
+
+OpenCode V2 differs in two ways. It resolves a local plugin directory to a `server` or `index` file rather than package `main`, so it skips a checkout path. For local development, commit the change and add `agy-staff@git+file:///absolute/path/to/checkout#<commit>`. Also, `opencode plugin add` appends rather than replaces. To upgrade, run `opencode plugin remove` with the configured spec, then `opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>'`. The running service picks up config changes; `opencode reload` forces a reload.
 
 ## Upgrading
 
@@ -279,7 +284,7 @@ Claude Code and Codex cache the plugin under a per-**version** directory (e.g. `
 
 - **Claude Code** — `claude plugin marketplace update agy-staff` refreshes the marketplace clone, then `claude plugin update agy@agy-staff` re-copies it into the cache. `install` is **not** the upgrade command: on an already-installed plugin it answers "already installed" and does nothing, whatever the version. And `update` only moves if the version string changed — on an unchanged version it answers "already at the latest version" and leaves the old commit in place. Force the current commit in with `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff`. Restart Claude Code afterwards either way — skills are registered at session start.
 - **Codex** — bump the version, run `codex plugin marketplace upgrade` (or remove and re-add the marketplace entry), then restart the app.
-- **OpenCode** — use a newer Git tag/commit in the native plugin installer with `--force`, then restart; see [OpenCode](#opencode).
+- **OpenCode** — pick a newer Git tag/commit. On V1, rerun the native installer with `--force`, then restart. On V2, `opencode plugin remove` the old spec before `opencode plugin add`. See [OpenCode](#opencode).
 - **Pi** — for an unpinned Git install, run `pi update --extension git:github.com/keli-wen/agy-staff`, then `/reload`. For local development, regenerate Pi skills (`npm run generate:pi`) and run `/reload`; no push is needed.
 
 You can check which commit is actually installed: the `gitCommitSha` in `~/.claude/plugins/installed_plugins.json`, versus `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` for what the marketplace clone has fetched.
@@ -297,7 +302,7 @@ templates/                    shared prompt templates (staffer/ask/research/revi
 .agents/plugins/              Codex marketplace manifest
 pi-skills/                    generated agy-* entrypoints/resources for Pi; do not hand-edit
 opencode-skills/              generated agy-* entrypoints/resources for OpenCode; do not hand-edit
-opencode.mjs                  OpenCode V1 package plugin; registers bundled skills
+opencode.mjs                  OpenCode V1/V2 package plugin; registers bundled skills (and V2 commands)
 scripts/generate-skills.mjs   generates Pi/OpenCode skills and checks for drift
 package.json                  Pi manifest, OpenCode entrypoint, npm file allowlist, and verification commands
 skills/                       canonical personas + jobs (Claude/Codex entrypoints;

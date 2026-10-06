@@ -347,21 +347,26 @@ Windows 为尽力支持，由 CI 的 `Tests (Windows)` 任务覆盖，尚未在�
 
 ## OpenCode
 
-`opencode.mjs` 是无额外依赖的 OpenCode V1 插件，使用 config hook 注册技能，已在 1.18.34 验证。运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global` 安装完整包，重启后运行 `/agy-ask reply with OK`。companion 需要 Node.js 以及 PATH 中已完成登录的 `agy`。此适配器不覆盖 OpenCode V2。
+`opencode.mjs` 是无额外依赖的 OpenCode V1/V2 组合插件：默认导出中的 `server()` 供 OpenCode V1 使用（1.18.29 及以上，已在 1.18.34 验证），`id` 与 `setup()` 供 OpenCode V2 使用（已在 2.0.23 验证）。V2 运行 `opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git'` 安装完整包；V1 运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global` 并重启。之后运行 `/agy-ask reply with OK`。companion 需要 Node.js 以及 PATH 中已完成登录的 `agy`。
 
-原生安装器会在 OpenCode 配置的 `plugin` 数组中添加包条目，等价配置为：
+原生安装器会在 OpenCode 配置中添加包条目：V2 使用 `plugins` 数组，V1 使用 `plugin` 数组。等价的 V2 配置为：
 
 ```json
 {
-  "plugin": ["agy-staff@git+https://github.com/keli-wen/agy-staff.git"]
+  "plugins": ["agy-staff@git+https://github.com/keli-wen/agy-staff.git"]
 }
 ```
 
-插件将包内 `opencode-skills/` 的绝对路径追加到 `skills.paths`，保留已有路径并避免重复注册。OpenCode 会发现七个带品牌前缀的技能，并提供同名原生斜杠命令：`/agy-ask`、`/agy-staffer`、`/agy-researcher`、`/agy-reviewer`、`/agy-implementer`、`/agy-jobs` 和 `/agy-lead`。无需额外命令包装，已有 OpenCode 技能权限仍然适用。
+两个版本最终都会提供七个带品牌前缀的技能和同名斜杠命令：`/agy-ask`、`/agy-staffer`、`/agy-researcher`、`/agy-reviewer`、`/agy-implementer`、`/agy-jobs` 和 `/agy-lead`。已有 OpenCode 技能权限仍然适用。
+
+- **V1**：config hook 将包内 `opencode-skills/` 的绝对路径追加到 `skills.paths`，保留已有路径并避免重复注册。OpenCode 自行发现技能并生成命令，无需额外命令包装。
+- **V2**：没有 config hook，技能也不会自动成为命令。`setup()` 通过 `ctx.skill.transform` 注册每个包内技能及其 `SKILL.md` 绝对路径，OpenCode 以该目录作为相对资源的基准目录；同时通过 `ctx.command.transform` 注册同名命令，把用户输入连同对应技能重新提交。也可以使用 `@agy-ask` 这样的技能提及。
 
 `npm run generate:opencode` 从唯一方法源 `skills/` 生成入口，复制所有资源、改写调用方式与相对路径，并附上与 Pi 相同的主环境兼容说明。companion 与提示词模板继续共用。请安装完整包；单独复制插件文件会缺失相对路径引用的资源。
 
 本地开发时运行 `opencode plugin /absolute/path/to/checkout --global`，修改源文件后运行 `npm run generate:skills` 并重启 OpenCode；本地安装直接读取检出目录。Git 安装按完整包规格缓存，仅重启或对相同规格使用 `--force` 不会刷新缓存。升级时选择新的标签或提交，运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`，然后重启。所选引用必须包含此适配器。`--force` 替换配置中的插件条目，变更引用则提供新的缓存键。
+
+OpenCode V2 有两点不同。它把本地插件目录解析为其中的 `server` 或 `index` 文件，而不是包的 `main`，因此会跳过检出目录路径；本地开发时请提交修改，再添加 `agy-staff@git+file:///absolute/path/to/checkout#<commit>`。另外，`opencode plugin add` 只追加、不替换；升级时先用 `opencode plugin remove` 移除已配置的规格，再运行 `opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>'`。运行中的服务会感知配置变化，也可运行 `opencode reload` 强制重新加载。
 
 ## 升级
 
@@ -381,7 +386,7 @@ Claude Code 和 Codex 按版本号缓存插件，例如 `cache/agy-staff/agy/0.4
 
 ### OpenCode
 
-使用带新 Git 标签或提交的原生插件安装命令，加上 `--force`，然后重启；详见 [OpenCode](#opencode)。
+选择新的 Git 标签或提交。V1 使用原生插件安装命令并加上 `--force`，然后重启；V2 先 `opencode plugin remove` 旧规格，再 `opencode plugin add`。详见 [OpenCode](#opencode)。
 
 ### Pi
 
@@ -402,7 +407,7 @@ skills/                       角色技能与 jobs 管理技能，以及按需�
 pi-skills/                    自动生成的 Pi 入口与参考文件，不应手动编辑
 templates/                    共享提示词模板与宿主兼容说明
 opencode-skills/              自动生成的 OpenCode 入口与参考文件，不应手动编辑
-opencode.mjs                  OpenCode V1 包入口，注册包内技能
+opencode.mjs                  OpenCode V1/V2 包入口，注册包内技能（V2 另注册命令）
 scripts/generate-skills.mjs   生成 Pi/OpenCode 技能并检查一致性
 .claude-plugin/               Claude Code 插件与插件市场配置
 .codex-plugin/plugin.json     Codex 插件配置

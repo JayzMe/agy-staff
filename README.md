@@ -66,15 +66,21 @@ Update with `pi update --extension git:github.com/keli-wen/agy-staff`, then run 
 <details>
 <summary>Using OpenCode?</summary>
 
-With OpenCode V1 (verified on 1.18.34), install the package through its native plugin manager:
+Install the package through OpenCode's native plugin manager. OpenCode V2 (verified on 2.0.23) uses `plugin add`:
+
+```bash
+opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git'
+```
+
+OpenCode V1 (verified on 1.18.34) takes the spec directly:
 
 ```bash
 opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global
 ```
 
-Restart OpenCode, then run `/agy-ask reply with OK`. The plugin automatically registers all seven `agy-*` skills and their native slash commands, including `/agy-lead` and `/agy-jobs`. No separate skills path or command wrappers are needed. Node.js and an authenticated `agy` are required, as above.
+V2's background service loads the plugin without a restart (run `opencode reload` if it does not appear); restart V1. Then run `/agy-ask reply with OK`. The plugin automatically registers all seven `agy-*` skills and same-named slash commands, including `/agy-lead` and `/agy-jobs`; V2 also accepts skill mentions such as `@agy-ask`. No separate skills path or command wrappers are needed. Node.js and an authenticated `agy` are required, as above.
 
-OpenCode caches the complete package spec. Restarting does not refresh an unchanged Git spec. To upgrade, choose a newer Git tag or commit and run `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`, then restart. See [the reference](docs/REFERENCE.md#opencode) for config and local development. OpenCode V2 is not covered by this adapter.
+OpenCode caches the complete package spec, so an unchanged Git spec is never refreshed. To upgrade, choose a newer Git tag or commit. On V2, `opencode plugin remove` the old spec, then `opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>'`; adding alone keeps both entries. On V1, run `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`, then restart. See [the reference](docs/REFERENCE.md#opencode) for config and local development.
 
 </details>
 

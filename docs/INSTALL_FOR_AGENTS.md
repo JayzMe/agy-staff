@@ -17,10 +17,10 @@ You normally know which product you are. If unsure, check:
 - **Claude Code** — you have `/plugin` slash commands, project instructions arrive via `CLAUDE.md`, and your Bash tool typically has `CLAUDECODE=1` in the environment. → Follow section 2a.
 - **Codex** — you invoke skills with `$name` syntax, follow `AGENTS.md`, and plugins are managed through the `codex` CLI. → Follow section 2b.
 - **Pi** — you invoke skills with `/skill:name` and manage packages with `pi install`. → Follow section 2c.
-- **OpenCode V1** — you use `opencode`, its `plugin` config or `opencode plugin` installer, and native `/agy-*` commands. Verified with OpenCode 1.18.34; V2 is not covered. → Follow section 2d.
-- **Anything else** — this package documents Claude Code, Codex, Pi, and OpenCode V1. Report the unsupported harness and stop.
+- **OpenCode** — you use `opencode` and native `/agy-*` commands. Run `opencode --version`: 1.x is V1 (`plugin` config, `opencode plugin <spec>` installer; verified with 1.18.34) → Follow section 2d. 2.x is V2 (`plugins` config, `opencode plugin add` installer; verified with 2.0.23) → Follow section 2e.
+- **Anything else** — this package documents Claude Code, Codex, Pi, and OpenCode V1/V2. Report the unsupported harness and stop.
 
-Follow exactly one of the four sections below.
+Follow exactly one of the five sections below.
 
 ## 2a. Claude Code — install / upgrade
 
@@ -97,7 +97,28 @@ OpenCode 1.18.34 caches the full package spec. Restarting or reinstalling the sa
 opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force
 ```
 
-Changing the ref creates a fresh cache key; `--force` replaces the configured plugin entry. Do not clear unrelated caches. This adapter covers V1, not V2.
+Changing the ref creates a fresh cache key; `--force` replaces the configured plugin entry. Do not clear unrelated caches.
+
+## 2e. OpenCode V2 — install / upgrade / local development
+
+Use the native plugin installer (verified with OpenCode 2.0.23). V2 rejects the V1 form `opencode plugin <spec>`:
+
+```bash
+opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git'
+```
+
+This installs the full package and adds it to the `plugins` array in OpenCode's global config, preserving other settings. Do not replace the user's config file. The plugin registers its bundled skills and same-named `/agy-*` commands itself; do not manually clone the repository or add `skills` entries as an installation workaround. V2 skips a plain checkout directory, so for an explicitly provided local checkout, commit the change and add `agy-staff@git+file:///absolute/path/to/checkout#<commit>`. Regenerate modified canonical skills with `npm run generate:skills` before committing.
+
+The background service loads the plugin without a restart; run `opencode reload` if it does not appear. Verify with `opencode api command.list`: expect `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, `agy-jobs`, and `agy-lead` alongside other commands. The same IDs are registered as skills, so `@agy-ask` mentions also work. Existing skill permissions remain in effect. Install the entire package, since its companion, templates and references are relative resources.
+
+OpenCode caches the full package spec, and `opencode plugin add` appends rather than replaces. To upgrade, select a newer tag or commit containing the adapter, remove the spec exactly as it appears in the `plugins` config array, then add the new one:
+
+```bash
+opencode plugin remove 'agy-staff@git+https://github.com/keli-wen/agy-staff.git'
+opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>'
+```
+
+Do not clear unrelated caches.
 
 ## 3. Smoke test
 
@@ -106,7 +127,7 @@ Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 - Claude Code: `/agy:ask "reply with OK"` — **after the restart**, otherwise you are testing the old copy or nothing at all
 - Codex: `$agy:ask reply with OK`
 - Pi: `/skill:agy-ask reply with OK` — after restart or `/reload`
-- OpenCode: `/agy-ask reply with OK` — after restart
+- OpenCode: `/agy-ask reply with OK` — after restart (V1) or once `opencode api command.list` shows it (V2)
 
 If you cannot restart the session, call the companion of the freshly installed copy directly from the shell. It is the same code path the skill takes, so a pass here means the install is sound:
 

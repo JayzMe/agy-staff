@@ -56,15 +56,21 @@ codex plugin add agy@agy-staff
 <details>
 <summary>在 OpenCode 中安装</summary>
 
-使用 OpenCode V1（已在 1.18.34 验证）的原生插件管理命令安装：
+使用 OpenCode 的原生插件管理命令安装。OpenCode V2（已在 2.0.23 验证）使用 `plugin add`：
+
+```bash
+opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git'
+```
+
+OpenCode V1（已在 1.18.34 验证）直接传入包规格：
 
 ```bash
 opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global
 ```
 
-重启 OpenCode 后运行 `/agy-ask reply with OK`。插件会自动注册七个 `agy-*` 技能及其原生斜杠命令，包括 `/agy-lead` 和 `/agy-jobs`，无需单独配置技能路径或命令包装。仍需安装 Node.js，并完成 `agy` 登录。
+V2 的后台服务无需重启即可加载插件（若未出现，运行 `opencode reload`）；V1 需重启。之后运行 `/agy-ask reply with OK`。插件会自动注册七个 `agy-*` 技能及同名斜杠命令，包括 `/agy-lead` 和 `/agy-jobs`；V2 还支持 `@agy-ask` 这样的技能提及。无需单独配置技能路径或命令包装。仍需安装 Node.js，并完成 `agy` 登录。
 
-OpenCode 按完整包规格缓存；仅重启不会刷新相同的 Git 规格。升级时选择新的 Git 标签或提交，运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`，然后重启。配置与本地开发方式见[参考手册](docs/REFERENCE.zh-CN.md#opencode)。此适配器不覆盖 OpenCode V2。
+OpenCode 按完整包规格缓存，相同的 Git 规格不会被刷新。升级时选择新的 Git 标签或提交。V2 先用 `opencode plugin remove` 移除旧规格，再运行 `opencode plugin add 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>'`；只添加会同时保留两个条目。V1 运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`，然后重启。配置与本地开发方式见[参考手册](docs/REFERENCE.zh-CN.md#opencode)。
 
 </details>
 
