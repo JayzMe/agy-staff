@@ -50,7 +50,7 @@ test('OpenCode generation copies assets, detects drift and never overwrites in c
   assert.match(fs.readFileSync(output, 'utf8'), /hand edit/);
 });
 
-test('packed OpenCode plugin registers only bundled branded skills idempotently and runs jobs from another cwd', async t => {
+test('packed OpenCode plugin registers bundled branded skills on V1 and V2 and runs jobs from another cwd', async t => {
   const sb = sandbox('opencode-pack');
   t.after(() => fs.rmSync(sb.root, { recursive: true, force: true }));
   const { metadata, dir } = pack(sb.root);
@@ -79,8 +79,9 @@ test('packed OpenCode plugin registers only bundled branded skills idempotently 
   fs.writeFileSync(output, original);
 
   const plugin = await import(pathToFileURL(path.join(dir, manifest.main)));
-  assert.deepEqual(Object.keys(plugin), ['AgyStaffPlugin']);
-  const hooks = await plugin.AgyStaffPlugin({});
+  assert.deepEqual(Object.keys(plugin), ['default']);
+  assert.equal(plugin.default.id, 'agy-staff');
+  const hooks = await plugin.default.server({});
   const config = { skills: { paths: ['/existing/skills'], urls: ['https://example.invalid/skills'] }, permission: { skill: { '*': 'ask' } } };
   await hooks.config(config);
   await hooks.config(config);
@@ -88,7 +89,34 @@ test('packed OpenCode plugin registers only bundled branded skills idempotently 
   const empty = {};
   await hooks.config(empty);
   assert.deepEqual(empty, { skills: { paths: [path.join(dir, 'opencode-skills')] } });
-  const invoke = (skill, args, sleep = '150') => {
+
+  // V2 has no config hook: setup registers the skills and same-named commands.
+  const registered = { skills: [], commands: [], prompts: [] };
+  await plugin.default.setup({
+    skill: { transform: async edit => edit({ add: skill => registered.skills.push(skill) }) },
+    command: { transform: async edit => edit({ add: command => registered.commands.push(command) }) },
+    session: { prompt: async input => { registered.prompts.push(input); } },
+  });
+  assert.deepEqual(registered.skills.map(skill => skill.id), names.map(name => `agy-${name}`));
+  for (const skill of registered.skills) {
+    const source = fs.readFileSync(path.join(dir, 'opencode-skills', skill.id, 'SKILL.md'), 'utf8');
+    assert.equal(skill.path, path.join(dir, 'opencode-skills', skill.id, 'SKILL.md'));
+    assert.equal(skill.name, skill.id);
+    assert.ok(source.startsWith(`---\nname: ${skill.id}\ndescription: ${skill.description}\n---\n`), skill.id);
+    assert.match(skill.content, /^<!-- Generated from skills\//);
+    assert.ok(source.trimEnd().endsWith(skill.content), skill.id);
+  }
+  assert.deepEqual(registered.commands.map(command => [command.name, command.description]), registered.skills.map(skill => [skill.id, skill.description]));
+  const askCommand = registered.commands.find(command => command.name === 'agy-ask');
+  const mentioned = { id: 'agy-jobs', name: 'agy-jobs', text: 'loaded' };
+  await askCommand.execute({ sessionID: 'ses_1', prompt: { text: 'reply with OK', files: [], skills: [mentioned, { id: 'agy-ask', name: 'stale' }] }, delivery: 'queue' });
+  await askCommand.execute({ sessionID: 'ses_2', prompt: { text: '' } });
+  assert.deepEqual(registered.prompts, [
+    { sessionID: 'ses_1', text: 'reply with OK', files: [], skills: [mentioned, { id: 'agy-ask', name: 'agy-ask' }], delivery: 'queue' },
+    { sessionID: 'ses_2', text: '', skills: [{ id: 'agy-ask', name: 'agy-ask' }] },
+  ]);
+
+  const invoke =(skill, args, sleep = '150') => {
     const skillDir = path.join(empty.skills.paths[0], `agy-${skill}`);
     const command = /node "<skill-dir>\/([^"\n]+)"/.exec(fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8'));
     assert.ok(command, `companion command missing from ${skill}`);
