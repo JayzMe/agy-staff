@@ -40,6 +40,7 @@
     "generate:skills": "node scripts/generate-skills.mjs",
     "check:skills": "node scripts/generate-skills.mjs --check",
     "test:opencode": "node --test tests/opencode.integration.mjs",
+    "test:opencode-v2": "node --test tests/opencode-v2.integration.mjs",
     "pack:checked": "npm run check:skills && npm pack --ignore-scripts",
     "prepublishOnly": "npm run check:skills"
   },
@@ -56,7 +57,7 @@
     "./package.json": "./package.json"
   },
   "engines": {
-    "opencode": ">=1.18.34 <2"
+    "opencode": ">=1.18.34 <3"
   },
   "dsh": {
     "manifestVersion": 1,
